@@ -1,4 +1,8 @@
-import { Form, Link, useSearchParams } from "react-router-dom";
+import { useRef, useState } from "react";
+import { useDispatch } from "react-redux";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
+import { authActions } from "../../store/auth-slice";
+import Input from "../UI/Input";
 
 const btnStyle = {
   backgroundColor: "#8b005d",
@@ -9,8 +13,81 @@ const linkStyle = {
 };
 
 const AuthForm = () => {
+  const nameInputRef = useRef();
+  const emailInputRef = useRef();
+  const contactInputRef = useRef();
+  const passwordInputRef = useRef();
+  const navigation = useNavigate();
   const [searchParams] = useSearchParams();
   const inLoginMode = searchParams.get("mode") === "login";
+
+  const [error, setError] = useState({ status: false, message: "" });
+
+  const dispatch = useDispatch();
+
+  // const [isRegistered, setIsRegistered] = useState(false)
+  // const confirmPasswordInputRef = useRef();
+
+  async function handleAuthUser(user) {
+    // console.log(user);
+    const response = await fetch(
+      `http://localhost:8080/${!inLoginMode ? "users" : "userlogin"}`,
+      {
+        method: "POST",
+        body: user,
+        headers: new Headers({
+          "content-type": "application/json",
+          "Access-Control-Allow-Origin": "http://localhost:8080",
+        }),
+      }
+    );
+
+    if (inLoginMode) {
+      if (response.ok) {
+        setError({ status: false, message: "" });
+        alert("Login successful");
+        dispatch(authActions.setIsAuthenticated(JSON.parse(user).email));
+        localStorage.setItem("email", JSON.parse(user).email);
+        navigation("../dashboard");
+      } else {
+        const data = await response.json();
+        setError({ status: false, message: data.message });
+      }
+    } else {
+      if (response.ok) {
+        setError({ status: false, message: "" });
+        // setIsRegistered(prev => !prev)
+        alert("User registered Succesfully");
+        nameInputRef.current.value = "";
+        emailInputRef.current.value = "";
+        contactInputRef.current.value = "";
+        passwordInputRef.current.value = "";
+        navigation("?mode=login");
+      } else {
+        const data = await response.json();
+        setError({ status: false, message: data.message });
+      }
+    }
+  }
+
+  const onSubmitHandler = (event) => {
+    event.preventDefault();
+    if (!inLoginMode) {
+      const userRegister = {
+        name: nameInputRef.current.value,
+        email: emailInputRef.current.value,
+        phone: contactInputRef.current.value,
+        password: passwordInputRef.current.value,
+      };
+      handleAuthUser(JSON.stringify(userRegister));
+    } else {
+      const loginUser = {
+        email: emailInputRef.current.value,
+        password: passwordInputRef.current.value,
+      };
+      handleAuthUser(JSON.stringify(loginUser));
+    }
+  };
 
   return (
     <>
@@ -24,83 +101,53 @@ const AuthForm = () => {
                     <h2 className="text-uppercase text-center mb-5">
                       {inLoginMode ? "Login" : "Register"}
                     </h2>
-
-                    <Form>
+                    {!error.status && <p className="text-center text-danger fw-bold bg-warning">{error.message}</p>}
+                    <form method="post" onSubmit={onSubmitHandler}>
                       {!inLoginMode && (
-                        <div className="form-outline mb-4">
-                          <input
-                            type="text"
-                            id="form3Example1cg"
-                            className="form-control form-control-lg"
-                            placeholder="Your Name"
-                          />
-                        </div>
-                      )}
-
-                      <div className="form-outline mb-4">
-                        <input
-                          type="email"
-                          id="email"
-                          className="form-control form-control-lg"
-                          placeholder="Your Email"
+                        <Input
+                          type="text"
+                          id="name"
+                          label="Your Name"
+                          reference={nameInputRef}
                         />
-                      </div>
-
-                      {!inLoginMode && (
-                        <div className="form-outline mb-4">
-                          <input
-                            type="tel"
-                            id="phone"
-                            className="form-control form-control-lg"
-                            placeholder="Your Contact Number"
-                          />
-                        </div>
                       )}
 
-                      <div className="form-outline mb-4">
-                        <input
+                      <Input
+                        type="email"
+                        id="email"
+                        placeholder="Your Email"
+                        label="Email"
+                        reference={emailInputRef}
+                      />
+
+                      {!inLoginMode && (
+                        <Input
+                          type="tel"
+                          id="phone"
+                          label="Contact"
+                          reference={contactInputRef}
+                        />
+                      )}
+
+                      <Input
+                        type="password"
+                        id="password"
+                        label="Password"
+                        reference={passwordInputRef}
+                      />
+
+                      {/* {!inLoginMode && (
+                        <Input
                           type="password"
-                          id="password"
-                          className="form-control form-control-lg"
-                          placeholder="Password"
+                          id="repPassword"
+                          label="Confirm Password"
+                          reference={confirmPasswordInputRef}
                         />
-                      </div>
-
-                      {!inLoginMode && (
-                        <div className="form-outline mb-4">
-                          <input
-                            type="password"
-                            id="confirm password"
-                            className="form-control form-control-lg"
-                            placeholder="Confirm Password"
-                          />
-                        </div>
-                      )}
-
-                      {!inLoginMode && (
-                        <div className="form-check d-flex justify-content-center mb-5">
-                          <input
-                            className="form-check-input me-2"
-                            type="checkbox"
-                            value="yes"
-                            id="checkbox"
-                            defaultChecked
-                          />
-                          <label
-                            className="form-check-label"
-                            htmlFor="checkbox"
-                          >
-                            I agree all statements in{" "}
-                            <a href="#!" className="text-body">
-                              <u>Terms of service</u>
-                            </a>
-                          </label>
-                        </div>
-                      )}
+                      )} */}
 
                       <div className="d-flex justify-content-center">
                         <button
-                          type="button"
+                          type="submit"
                           className="btn btn-success btn-block btn-lg text-white"
                           style={btnStyle}
                         >
@@ -121,7 +168,7 @@ const AuthForm = () => {
                           </u>
                         </Link>
                       </p>
-                    </Form>
+                    </form>
                   </div>
                 </div>
               </div>
